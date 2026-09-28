@@ -1,5 +1,13 @@
 // SmartView Web App - Main JavaScript
 
+// ==============================================
+// CONFIGURATION - Add your TMDb API key here
+// ==============================================
+// Get a FREE API key at: https://www.themoviedb.org/settings/api
+const TMDB_API_KEY = ''; // Leave empty to use sample data, or add your key
+const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+
 // Sample data - In production, this would come from a backend API
 const sampleMovies = [
     {
@@ -110,11 +118,22 @@ const videoDescription = document.getElementById('videoDescription');
 const closeModal = document.querySelector('.close');
 
 // Initialize the app
-function init() {
-    renderContent(featuredGrid, sampleMovies.slice(0, 4));
-    renderContent(moviesGrid, sampleMovies);
-    renderContent(tvShowsGrid, sampleTVShows);
+async function init() {
+    console.log('SmartView initializing...');
+    
+    // Check if TMDb API key is configured
+    if (TMDB_API_KEY && TMDB_API_KEY.length > 10) {
+        console.log('TMDb API key found, loading real data...');
+        await loadTMDbContent();
+    } else {
+        console.log('No API key, using sample data...');
+        renderContent(featuredGrid, sampleMovies.slice(0, 4));
+        renderContent(moviesGrid, sampleMovies);
+        renderContent(tvShowsGrid, sampleTVShows);
+    }
+    
     setupEventListeners();
+    console.log('SmartView initialized successfully!');
 }
 
 // Render content cards
@@ -176,30 +195,43 @@ function closePlayer() {
 }
 
 // Search functionality
-function performSearch() {
+async function performSearch() {
     const query = searchInput.value.toLowerCase().trim();
     
     if (!query) {
-        renderContent(moviesGrid, sampleMovies);
-        renderContent(tvShowsGrid, sampleTVShows);
+        // Reset to initial state
+        if (TMDB_API_KEY && TMDB_API_KEY.length > 10) {
+            await loadTMDbContent();
+        } else {
+            renderContent(moviesGrid, sampleMovies);
+            renderContent(tvShowsGrid, sampleTVShows);
+        }
         return;
     }
     
+    const moviesSection = document.getElementById('movies-section');
+    const tvShowsSection = document.getElementById('tvshows-section');
+    moviesSection.querySelector('h2').textContent = `Search Results for "${query}"`;
+    tvShowsSection.style.display = 'none';
+    
+    // Try TMDb search first
+    if (TMDB_API_KEY && TMDB_API_KEY.length > 10) {
+        const results = await searchTMDb(query);
+        if (results) {
+            renderContent(moviesGrid, results);
+            moviesSection.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+    }
+    
+    // Fallback to local search
     const allContent = [...sampleMovies, ...sampleTVShows];
     const results = allContent.filter(item => 
         item.title.toLowerCase().includes(query) ||
         item.description.toLowerCase().includes(query)
     );
     
-    // Show results in movies section and hide TV shows
-    const moviesSection = document.getElementById('movies-section');
-    const tvShowsSection = document.getElementById('tvshows-section');
-    
-    moviesSection.querySelector('h2').textContent = `Search Results for "${query}"`;
     renderContent(moviesGrid, results);
-    tvShowsSection.style.display = 'none';
-    
-    // Scroll to results
     moviesSection.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -272,32 +304,114 @@ function setupEventListeners() {
     });
 }
 
-// Optional: Fetch content from an API
-async function fetchContent(apiUrl) {
+// Fetch content from TMDb API
+async function fetchContent(url) {
     try {
-        const response = await fetch(apiUrl);
+        showLoading();
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
+        hideLoading();
         return data;
     } catch (error) {
         console.error('Error fetching content:', error);
-        return [];
+        hideLoading();
+        return null;
     }
 }
 
-// Example: Using The Movie Database (TMDb) API
-// You would need to sign up for a free API key at https://www.themoviedb.org/settings/api
+// Show loading indicator
+function showLoading() {
+    [featuredGrid, moviesGrid, tvShowsGrid].forEach(grid => {
+        if (grid && !grid.querySelector('.loading')) {
+            grid.innerHTML = '<div class="loading">Loading content</div>';
+        }
+    });
+}
+
+// Hide loading indicator
+function hideLoading() {
+    document.querySelectorAll('.loading').forEach(el => el.remove());
+}
+
+// Transform TMDb data to our format
+function transformTMDbMovie(movie) {
+    return {
+        id: movie.id,
+        title: movie.title || movie.name,
+        year: (movie.release_date || movie.first_air_date || '').split('-')[0],
+        rating: `${(movie.vote_average || 0).toFixed(1)}/10`,
+        thumbnail: movie.poster_path 
+            ? `${TMDB_IMAGE_BASE}${movie.poster_path}`
+            : 'https://via.placeholder.com/200x300/1a1a1a/e50914?text=No+Image',
+        description: movie.overview || 'No description available.',
+        videoUrl: '' // TMDb doesn't provide video URLs
+    };
+}
+
+// Load content from TMDb API
 async function loadTMDbContent() {
-    const API_KEY = 'YOUR_TMDB_API_KEY'; // Replace with your API key
-    const BASE_URL = 'https://api.themoviedb.org/3';
+    try {
+        // Fetch popular movies
+        const moviesData = await fetchContent(
+            `${TMDB_BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}&language=en-US&page=1`
+        );
+        
+        // Fetch popular TV shows
+        const tvData = await fetchContent(
+            `${TMDB_BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}&language=en-US&page=1`
+        );
+        
+        if (moviesData && moviesData.results) {
+            const movies = moviesData.results.slice(0, 12).map(transformTMDbMovie);
+            renderContent(featuredGrid, movies.slice(0, 4));
+            renderContent(moviesGrid, movies);
+            console.log(`Loaded ${movies.length} movies from TMDb`);
+        } else {
+            // Fallback to sample data
+            renderContent(featuredGrid, sampleMovies.slice(0, 4));
+            renderContent(moviesGrid, sampleMovies);
+        }
+        
+        if (tvData && tvData.results) {
+            const tvShows = tvData.results.slice(0, 10).map(transformTMDbMovie);
+            renderContent(tvShowsGrid, tvShows);
+            console.log(`Loaded ${tvShows.length} TV shows from TMDb`);
+        } else {
+            // Fallback to sample data
+            renderContent(tvShowsGrid, sampleTVShows);
+        }
+        
+    } catch (error) {
+        console.error('Failed to load TMDb content:', error);
+        // Fallback to sample data
+        renderContent(featuredGrid, sampleMovies.slice(0, 4));
+        renderContent(moviesGrid, sampleMovies);
+        renderContent(tvShowsGrid, sampleTVShows);
+    }
+}
+
+// Search TMDb (if API key is available)
+async function searchTMDb(query) {
+    if (!TMDB_API_KEY || TMDB_API_KEY.length < 10) {
+        return null;
+    }
     
-    // Uncomment to use real data:
-    // const movies = await fetchContent(`${BASE_URL}/movie/popular?api_key=${API_KEY}`);
-    // const tvShows = await fetchContent(`${BASE_URL}/tv/popular?api_key=${API_KEY}`);
-    // Process and render the data...
+    const url = `${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(query)}&page=1`;
+    const data = await fetchContent(url);
+    
+    if (data && data.results) {
+        return data.results
+            .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
+            .map(transformTMDbMovie);
+    }
+    
+    return null;
 }
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
 
-// Export for potential future use
-export { sampleMovies, sampleTVShows, performSearch, openPlayer };
+console.log('SmartView loaded. Ready to initialize...');
