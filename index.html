@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartView - Stream Movies & TV Shows</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo">🎬 SmartView</h1>
+            <nav>
+                <ul>
+                    <li><a href="#home" class="active">Home</a></li>
+                    <li><a href="#movies">Movies</a></li>
+                    <li><a href="#tvshows">TV Shows</a></li>
+                    <li><a href="#search">Search</a></li>
+                </ul>
+            </nav>
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search movies, TV shows...">
+                <button id="searchBtn">🔍</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="hero">
+            <div class="hero-content">
+                <h2>Watch Unlimited Movies & TV Shows</h2>
+                <p>Stream your favorite content, ad-free</p>
+                <button class="cta-button">Browse Content</button>
+            </div>
+        </section>
+
+        <!-- Featured Content -->
+        <section id="featured" class="container">
+            <h2>Featured</h2>
+            <div class="content-grid" id="featuredGrid">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Movies Section -->
+        <section id="movies-section" class="container">
+            <h2>Popular Movies</h2>
+            <div class="content-grid" id="moviesGrid">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- TV Shows Section -->
+        <section id="tvshows-section" class="container">
+            <h2>Popular TV Shows</h2>
+            <div class="content-grid" id="tvShowsGrid">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Video Player Modal -->
+        <div id="playerModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="videoPlayerContainer">
+                    <video id="videoPlayer" controls>
+                        <source src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="video-info">
+                        <h3 id="videoTitle"></h3>
+                        <p id="videoDescription"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 SmartView - Ad-Free Streaming Experience</p>
+            <p>Built with ❤️ for the community</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
